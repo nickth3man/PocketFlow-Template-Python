@@ -64,32 +64,45 @@ Marketing teams and individuals need to create platform-optimized, brand-consist
 1. **Engagement Manager**: Captures user inputs through GUI and manages preset configurations
 2. **Brand Bible Processor**: Converts descriptive brand text into structured voice parameters
 3. **Format Guidelines Batch**: Generates platform-specific formatting rules and constraints
-4. **Content Generator**: Creates initial drafts optimized for each platform
-5. **Style Editor**: Removes AI fingerprints and enforces brand voice consistency
-6. **Deadly Sins Scanner**: Detects specific AI patterns that must be eliminated
-7. **Content Sanitizer**: Removes identified violations while preserving meaning
-8. **Style Compliance Check**: Validates final content (max 5 revision cycles)
-9. **Feedback Router**: Handles user feedback for iterative refinement with version control
-10. **Final Formatter**: Outputs clean markdown with copy buttons
+4. **Creative Inspiration Node**: Uses LLM prompts to generate high-engagement examples without external web searches
+5. **Pattern-Aware Prompt Engineer**: Enhances prompts with positive writing alternatives to prevent AI patterns
+6. **Content Generator**: Creates initial drafts optimized for each platform
+7. **Style Optimizer**: Merged node for initial cleanup and AI pattern removal while preserving brand voice
+8. **Deadly Sins Scanner**: Detects specific AI patterns that must be eliminated
+9. **Style Compliance Check**: Validates final content (max 5 revision cycles)
+10. **Authenticity Scorer**: Evaluates human-like qualities beyond pattern avoidance
+11. **Feedback Router**: Handles user feedback for iterative refinement with version control
+12. **Pattern Learning Analyzer**: Improves prompt engineering based on revision history
+13. **Content Refinement**: Applies user-requested changes
+14. **Version Manager**: Tracks content versions for rollback capability
+15. **Final Formatter**: Outputs clean markdown with copy buttons
+16. **Preset Optimizer**: Learns from user preferences to improve preset configurations
+17. **Version Analytics Dashboard**: Provides insights into pattern reduction and revision efficiency
 
 ```mermaid
 flowchart TD
     A[EngagementManager] --> B[BrandBibleProcessor]
     B --> C[FormatGuidelinesBatch]
-    C --> D[ContentGenerator]
-    D --> E[StyleEditor]
-    E --> F[DeadlySinsScanner]
-    F --> G[ContentSanitizer]
-    G --> H{StyleCompliance}
-    H -->|Pass| I[FeedbackRouter]
-    H -->|Revise| E
-    H -->|Max Revisions| J[EditCycleReport]
-    J --> I
-    I -->|Continue| K[FeedbackProcessor]
-    K --> L[ContentRefinement]
-    L --> M[VersionManager]
+    C --> D[CreativeInspirationNode]
+    D --> E[PatternAwarePromptEngineer]
+    E --> F[ContentGenerator]
+    F --> G[StyleOptimizerNode]
+    G --> H[DeadlySinsScanner]
+    H --> I{StyleCompliance}
+    I -->|Pass| J[AuthenticityScorer]
+    I -->|Revise| G
+    I -->|Max Revisions| K[EditCycleReport]
+    K --> J
+    J -->|Continue| L[FeedbackRouter]
+    J -->|Improve| M[PatternLearningAnalyzer]
     M --> E
-    I -->|Done| N[FinalFormatter]
+    L -->|Continue| N[FeedbackProcessor]
+    N --> O[ContentRefinement]
+    O --> P[VersionManager]
+    P --> G
+    L -->|Done| Q[FinalFormatter]
+    Q --> R[PresetOptimizer]
+    R --> S[VersionAnalyticsDashboard]
 ```
 
 ## Utility Functions
@@ -137,10 +150,10 @@ flowchart TD
    - *Output*: formatting_guidelines (dict)
    - *Necessity*: Creates platform-specific character limits and style requirements
 
-6. **Subreddit Analyzer** (`utils/subreddit_analyzer.py`)
-   - *Input*: subreddit_name (str)
-   - *Output*: style_hints (dict), tone_adjustments (dict)
-   - *Necessity*: Infers appropriate style from subreddit context for Reddit posts
+6. **Creative Inspiration Generator** (`utils/creative_inspiration.py`)
+   - *Input*: topic (str), platform (str), brand_voice (dict)
+   - *Output*: inspiration_examples (list[str])
+   - *Necessity*: Uses LLM prompts to generate high-engagement content examples without external web searches
 
 7. **Version Manager** (`utils/version_manager.py`)
    - *Input*: content (dict), action (str), user_feedback (str)
@@ -161,6 +174,16 @@ flowchart TD
     - *Input*: content_pieces (dict), platform_list (list)
     - *Output*: formatted_markdown (str), copy_buttons_html (str)
     - *Necessity*: Formats final output with platform sections and copy functionality
+
+11. **Authenticity Scorer** (`utils/authenticity_scorer.py`)
+    - *Input*: text (str), brand_voice (dict)
+    - *Output*: authenticity_score (float), feedback (dict)
+    - *Necessity*: Evaluates human-like qualities beyond pattern avoidance
+
+12. **Pattern Learner** (`utils/pattern_learner.py`)
+    - *Input*: version_history (list), violations_data (dict)
+    - *Output*: learned_patterns (dict), prompt_improvements (dict)
+    - *Necessity*: Analyzes persistent patterns to improve future prompt engineering
 
 ## Node Design
 
@@ -231,7 +254,7 @@ shared = {
         },
         "reddit": {
             "char_limit": 40000,
-            "style_hints": {},  # filled by subreddit analyzer
+            "style_hints": {},  # filled by creative inspiration
             "tone_adjustment": "community_appropriate"
         },
         "blog": {
@@ -239,6 +262,10 @@ shared = {
             "structure": "deep_headings",
             "tone_adjustment": "authoritative"
         }
+    },
+    "creative_inspiration": {
+        "examples": [],  # filled by CreativeInspirationNode
+        "source_platforms": []
     },
     "content_pieces": {
         "email": {"subject": "...", "body": "..."},
@@ -320,53 +347,47 @@ shared = {
      - *exec*: For each platform, generate character limits, structure requirements, tone adjustments
      - *post*: Write platform_guidelines to shared store
 
-4. **ContentGeneratorNode**
+4. **CreativeInspirationNode**
+   - *Purpose*: Use LLM prompts to generate high-engagement examples without external web searches
+   - *Type*: Regular
+   - *Steps*:
+     - *prep*: Read topic, brand_voice, and platform_guidelines
+     - *exec*: Call LLM with prompt to generate creative examples for each platform
+     - *post*: Store inspiration examples in shared store for prompt engineering
+
+5. **PatternAwarePromptEngineerNode**
+   - *Purpose*: Enhance generation prompts with positive writing alternatives to prevent AI patterns
+   - *Type*: Regular
+   - *Steps*:
+     - *prep*: Read brand_voice, platform_guidelines, and creative inspiration
+     - *exec*: Generate pattern-aware prompts with few-shot examples of approved vs rejected phrasing
+     - *post*: Store enhanced prompts for content generation
+
+6. **ContentGeneratorNode**
    - *Purpose*: Generate initial content drafts for each platform
    - *Type*: Regular (max_retries=2, wait=5)
    - *Steps*:
-     - *prep*: Read topic, brand_voice, platform_guidelines
+     - *prep*: Read topic, brand_voice, platform_guidelines, and enhanced prompts
      - *exec*: Generate platform-optimized content using LLM with explicit instructions to avoid all 7 deadly sins
      - *post*: Write content_pieces to shared store
 
-5. **StyleEditorNode**
-   - *Purpose*: Initial cleanup and brand voice enforcement
+7. **StyleOptimizerNode**
+   - *Purpose*: Merged node for initial cleanup, brand voice enforcement, and AI pattern removal
    - *Type*: Regular (max_retries=2, wait=5)
    - *Steps*:
      - *prep*: Read content_pieces and brand_voice
      - *exec*: Apply conservative edits to improve style while maintaining brand voice and avoiding deadly sins
      - *post*: Update content_pieces with edited versions
 
-6. **DeadlySinsScannerNode**
+8. **DeadlySinsScannerNode**
    - *Purpose*: Detect all 7 specific AI fingerprint patterns with precise location tracking
    - *Type*: Regular
    - *Steps*:
      - *prep*: Read content_pieces from shared store
-     - *exec*: Scan all content for each of the 7 deadly sins patterns:
-       - Search for em dashes using regex
-       - Detect "It's not just X; it's Y" rhetorical contrasts
-       - Identify antithesis structures
-       - Find paradiastole patterns
-       - Locate reframing contrasts
-       - Detect chiasmus-like structures
-       - Identify tagline framing patterns
+     - *exec*: Scan all content for each of the 7 deadly sins patterns
      - *post*: Write detailed deadly_sins_violations with counts and positions to shared store
 
-7. **ContentSanitizerNode**
-   - *Purpose*: Remove identified AI fingerprints using specific remediation strategies
-   - *Type*: Regular
-   - *Steps*:
-     - *prep*: Read content_pieces and deadly_sins_violations
-     - *exec*: Apply targeted sanitization for each violation type:
-       - Replace em dashes with periods or commas
-       - Rewrite rhetorical contrasts as direct statements
-       - Convert antithesis to straightforward descriptions
-       - Transform paradiastole into clear explanations
-       - Eliminate reframing contrasts with factual statements
-       - Replace chiasmus patterns with linear explanations
-       - Convert tagline framing to descriptive language
-     - *post*: Update content_pieces with sanitized versions
-
-8. **StyleComplianceNode**
+9. **StyleComplianceNode**
    - *Purpose*: Final validation and revision loop management
    - *Type*: Regular
    - *Steps*:
@@ -374,15 +395,23 @@ shared = {
      - *exec*: Re-scan for any remaining deadly sins violations, increment revision count
      - *post*: Update quality_control; return "pass" (zero violations), "revise" (violations found, <5 revisions), or "manual_review" (≥5 revisions)
 
-9. **EditCycleReportNode**
-   - *Purpose*: Generate report when max revisions reached
-   - *Type*: Regular
-   - *Steps*:
-     - *prep*: Read violation history and current content
-     - *exec*: Create summary of persistent deadly sins violations requiring manual attention
-     - *post*: Write report to shared store, set manual_review flag
+10. **EditCycleReportNode**
+    - *Purpose*: Generate report when max revisions reached
+    - *Type*: Regular
+    - *Steps*:
+      - *prep*: Read violation history and current content
+      - *exec*: Create summary of persistent deadly sins violations requiring manual attention
+      - *post*: Write report to shared store, set manual_review flag
 
-10. **FeedbackRouterNode**
+11. **AuthenticityScorerNode**
+    - *Purpose*: Evaluate content authenticity using multiple dimensions beyond pattern avoidance
+    - *Type*: Regular
+    - *Steps*:
+      - *prep*: Read content_pieces and brand_voice
+      - *exec*: Score content on authenticity, engagement, and brand alignment metrics
+      - *post*: Return "continue" (needs improvement) or "done" (meets quality thresholds)
+
+12. **FeedbackRouterNode**
     - *Purpose*: Handle user feedback decisions
     - *Type*: Regular
     - *Steps*:
@@ -390,7 +419,7 @@ shared = {
       - *exec*: Parse user decision (done/continue with feedback)
       - *post*: Update feedback_state; return "done" or "continue"
 
-11. **FeedbackProcessorNode**
+13. **FeedbackProcessorNode**
     - *Purpose*: Process specific user feedback
     - *Type*: Regular
     - *Steps*:
@@ -398,7 +427,7 @@ shared = {
       - *exec*: Generate specific edit instructions from feedback while ensuring no deadly sins are introduced
       - *post*: Write edit instructions for content refinement
 
-12. **ContentRefinementNode**
+14. **ContentRefinementNode**
     - *Purpose*: Apply user-requested changes
     - *Type*: Regular
     - *Steps*:
@@ -406,7 +435,7 @@ shared = {
       - *exec*: Apply targeted edits based on user feedback while maintaining deadly sins compliance
       - *post*: Update content_pieces with refined versions
 
-13. **VersionManagerNode**
+15. **VersionManagerNode**
     - *Purpose*: Track content versions for rollback capability
     - *Type*: Regular
     - *Steps*:
@@ -414,7 +443,15 @@ shared = {
       - *exec*: Create version snapshot with metadata including violations fixed
       - *post*: Append to version_history in shared store
 
-14. **FinalFormatterNode**
+16. **PatternLearningAnalyzerNode**
+    - *Purpose*: Analyze persistent patterns across revisions to improve future prompt engineering
+    - *Type*: Regular
+    - *Steps*:
+      - *prep*: Read version_history and deadly_sins_violations
+      - *exec*: Identify most recurrent patterns and effective remediation strategies
+      - *post*: Update prompt engineering parameters for future generations
+
+17. **FinalFormatterNode**
     - *Purpose*: Format output as markdown with copy buttons
     - *Type*: Regular
     - *Steps*:
@@ -422,4 +459,18 @@ shared = {
       - *exec*: Generate clean markdown format with platform sections and copy functionality, verify zero deadly sins violations
       - *post*: Write formatted output for user interface display
 
-This design ensures zero-tolerance detection and removal of all 7 deadly AI sins through comprehensive scanning, targeted sanitization, and iterative refinement with strict compliance validation at every stage.
+18. **PresetOptimizerNode**
+    - *Purpose*: Learn from user feedback and usage patterns to improve preset configurations
+    - *Type*: Regular
+    - *Steps*:
+      - *prep*: Read version_history and user feedback
+      - *exec*: Analyze successful configurations and user preferences
+      - *post*: Update preset templates for future use
+
+19. **VersionAnalyticsDashboardNode**
+    - *Purpose*: Provide visual insights into pattern reduction and revision efficiency
+    - *Type*: Regular
+    - *Steps*:
+      - *prep*: Read version_history and quality_control metrics
+      - *exec*: Generate analytics on patterns per 100 words, reduction rates, time spent
+      - *post*: Present dashboard for user decision-making

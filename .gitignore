@@ -4,6 +4,12 @@ vendor/
 .pnp/
 .pnp.js
 
+
+
+
+
+
+ideas/
 # Build outputs
 dist/
 build/
