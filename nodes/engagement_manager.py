@@ -47,9 +47,12 @@ class EngagementManagerNode(Node):
         
         # Temperature
         temp_input = input("Temperature (0.0-1.0, default 0.7): ").strip()
+        print(f"temp_input: {temp_input}")
         try:
             temperature = float(temp_input) if temp_input else 0.7
+            print(f"temperature after float conversion: {temperature}")
             temperature = max(0.0, min(1.0, temperature))  # Clamp to valid range
+            print(f"temperature after clamping: {temperature}")
         except ValueError:
             temperature = 0.7
         

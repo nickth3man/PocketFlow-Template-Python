@@ -16,6 +16,8 @@ from nodes.version_manager import VersionManagerNode
 from nodes.final_formatter import FinalFormatterNode
 from nodes.preset_optimizer import PresetOptimizerNode
 from nodes.version_analytics import VersionAnalyticsNode
+from nodes.edit_cycle_report import EditCycleReportNode
+from nodes.feedback_processor import FeedbackProcessorNode
 from nodes import GetQuestionNode, AnswerNode
 
 def create_content_generation_flow():
@@ -38,6 +40,8 @@ def create_content_generation_flow():
     final_formatter = FinalFormatterNode()
     preset_optimizer = PresetOptimizerNode()
     version_analytics = VersionAnalyticsNode()
+    edit_cycle_report = EditCycleReportNode()
+    feedback_processor = FeedbackProcessorNode()
     
     # Connect nodes in the main flow
     engagement_manager >> brand_bible_processor
@@ -52,8 +56,10 @@ def create_content_generation_flow():
     # Compliance branching
     style_compliance - "approved" >> authenticity_scorer
     style_compliance - "revise" >> content_refinement
-    style_compliance - "manual_review" >> final_formatter
+    style_compliance - "manual_review" >> edit_cycle_report
     
+    edit_cycle_report >> authenticity_scorer
+
     # Refinement loop
     content_refinement >> deadly_sins_scanner  # Go back to scanning
     
@@ -61,8 +67,9 @@ def create_content_generation_flow():
     authenticity_scorer >> feedback_router
     
     # Feedback routing
-    feedback_router - "refine" >> content_refinement
-    feedback_router - "edit" >> content_refinement
+    feedback_router - "refine" >> feedback_processor
+    feedback_router - "edit" >> feedback_processor
+    feedback_processor >> content_refinement
     feedback_router - "regenerate" >> content_generator
     feedback_router - "save" >> version_manager
     feedback_router - "view" >> authenticity_scorer
@@ -80,14 +87,19 @@ def create_content_generation_flow():
 def create_qa_flow():
     """Create and return a question-answering flow."""
     # Create nodes
-    get_question_node = GetQuestionNode()
-    answer_node = AnswerNode()
-    
-    # Connect nodes in sequence
-    get_question_node >> answer_node
-    
-    # Create flow starting with input node
-    return Flow(start=get_question_node)
+    try:
+        get_question_node = GetQuestionNode()
+        answer_node = AnswerNode()
+        
+        # Connect nodes in sequence
+        get_question_node >> answer_node
+        
+        # Create flow starting with input node
+        return Flow(start=get_question_node)
+    except Exception as e:
+        # Return None if QA flow creation fails
+        print(f"Warning: QA flow creation failed: {e}")
+        return None
 
 # Create both flows
 content_generation_flow = create_content_generation_flow()

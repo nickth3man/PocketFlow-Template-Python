@@ -14,8 +14,22 @@ except ImportError:
         from nodes import GetQuestionNode, AnswerNode
     except ImportError:
         # Define dummy nodes if import fails
-        GetQuestionNode = None
-        AnswerNode = None
+        from pocketflow import Node
+        class GetQuestionNode(Node):
+            def exec(self, _):
+                return "Test question"
+            def post(self, shared, prep_res, exec_res):
+                shared["question"] = exec_res
+                return "default"
+        
+        class AnswerNode(Node):
+            def prep(self, shared):
+                return shared.get("question", "No question")
+            def exec(self, question):
+                return f"Answer to: {question}"
+            def post(self, shared, prep_res, exec_res):
+                shared["answer"] = exec_res
+                return "default"
 
 # Import all nodes from this package
 from .engagement_manager import EngagementManagerNode
